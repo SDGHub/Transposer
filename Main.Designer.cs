@@ -76,7 +76,6 @@
             this.Controls.Add(this.dataGridViewTrnspsr);
             this.MaximizeBox = false;
             this.Name = "Main";
-            this.ShowIcon = false;
             this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
             this.Text = "Transposer";
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewTrnspsr)).EndInit();

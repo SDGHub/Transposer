@@ -14,8 +14,9 @@ namespace Transposer
         public string Name { get; private set; }
         public string Ticker { get; private set; }
 
+        private List<TransposedSecurity> _transposedSecurity = new List<TransposedSecurity>();
         private DateTime _lastBackColorChg = DateTime.Now;
-        private bool _backColorNeedsCheck = false;
+        private bool _backColorNeedsCheck;
         private const double HighlightTimeInsecs = 4;
 
         private double _ask;
@@ -23,8 +24,10 @@ namespace Transposer
         private double _bid;
         private bool _prevBidInit;
         private double _mid;
+        protected bool MidInit;
         private bool _prevMidInit;
         private double _chg;
+        private double _prevMid;
 
         public double Ask
         {
@@ -36,8 +39,15 @@ namespace Transposer
 
                 _ask = Math.Round(value, 6);
 
-                if ((_prevBidInit) && (_prevAskInit))
-                    Mid = (_bid + _ask)/2;
+                lock (this)
+                {
+                    if ((_prevBidInit) && (_prevAskInit))
+                    {
+                        double tempMid = Math.Round((_bid + _ask)/2, 6);
+                        if (tempMid != Mid) Mid = tempMid;
+                    }
+                    //Mid =  Math.Round((_bid + _ask)/2,6);
+                }
             }
         }
 
@@ -49,61 +59,92 @@ namespace Transposer
                 if (!_prevBidInit)
                     _prevBidInit = true;
 
-                _bid = Math.Round(value, 6); ;
+                _bid = Math.Round(value, 6);
+                ;
 
-                if ((_prevBidInit) && (_prevAskInit))
-                    Mid = (_bid + _ask)/2;
+                lock (this)
+                {
+                    if ((_prevBidInit) && (_prevAskInit))
+                    {
+                        double tempMid = Math.Round((_bid + _ask)/2, 6);
+                        if (tempMid != Mid) Mid = tempMid;
+                    }
+                }
             }
         }
 
-        public double Mid
+        public virtual double Mid
         {
             get { return _mid; }
-            private set
+            set
             {
                 if (_prevMidInit)
                 {
                     // if the new value for mid is different from the prev mid
-                    if (Math.Abs(PrevMid - value) > 1E-14)
+                    if (Math.Abs(_mid - value) > 1E-4)
                     {
-                        PrevMid = _mid;
+                        double chg = value - _mid;
+
+                        //Console.WriteLine(@"{0} {1} NewVal {2} Mid {3} Prev {4} Chg {5}",
+                        //                  DateTime.Now.ToString("hh:mm:ss.fffff"), Name, value.ToString("#.0000"),
+                        //                  _mid.ToString("#.0000"),PrevMid.ToString("#.0000"), chg.ToString("#.0000"));
+
+                        _prevMid = _mid;
                         _mid = value;
                         UpdateMid();
-                        Change = _mid - PrevMid;
+                        Change = chg;
 
-                        //Console.WriteLine("{0} Mid {1} Prev {2} Chg {3}",Name,_mid, PrevMid,Change);
+                        if (GetType() == typeof(BloombergSecurity))
+                        {
+                            foreach (var transposedSecurity in _transposedSecurity)
+                            {
+                                transposedSecurity.BaseMid = Mid;
+                            }
+                        }
                     }
                 }
                 else
                 {
                     _mid = value;
-                    PrevMid = _mid;
+                    MidInit = true;
+                    PrevMid = value;
                     _prevMidInit = true;
+                    UpdateMid();
                 }
             }
         }
 
-        public double PrevMid { get; private set; }
+        public double PrevMid
+        {
+            get { return _prevMid; }
+            private set { _prevMid = value; }
+        }
 
         public double Change
         {
             get { return _chg; }
-            private set {
+            private set
+            {
                 if (value != 0)
                 {
-                    _chg = Math.Round(value, 5); 
+                    _chg = Math.Round(value, 5);
                     UpdateChange();
                 }
             }
         }
-        
-        public BloombergSecurity(DataGridViewRow dataGridrow, DataRow dataRow, List<string> securityField, Form parent)
+
+        public BloombergSecurity(DataGridViewRow dataGridrow, DataRow dataRow, List<string> securityField)
         {
             DataGridRow = dataGridrow;
             SecurityData = dataRow;
             Name = dataRow[1].ToString();
             Ticker = dataRow[0].ToString();
             SecurityFields = securityField;
+        }
+
+        public void AddTransposedSecurity(TransposedSecurity transposedSecurity)
+        {
+            _transposedSecurity.Add(transposedSecurity);
         }
 
         public void IntiTimer(Timer timer1)
@@ -127,11 +168,11 @@ namespace Transposer
 
         public void SetDelayedStream()
         {
-            foreach (DataGridViewCell cell in DataGridRow.Cells)
-                cell.Style.BackColor = Color.Yellow;
+            //foreach (DataGridViewCell cell in DataGridRow.Cells)
+            //    cell.Style.BackColor = Color.Yellow;
         }
 
-        private void UpdateMid()
+        protected virtual void UpdateMid()
         {
             SecurityData["Mid"] = Mid;
         }
@@ -178,7 +219,7 @@ namespace Transposer
                 }
             }
         }
-        
+
         private void timer2_Tick(object sender, EventArgs e)
         {
             var rnd = new Random();
@@ -186,4 +227,116 @@ namespace Transposer
             Change = bias;
         }
     }
+
+    public class TransposedSecurity : BloombergSecurity
+    {
+        private BloombergSecurity _baseSecurity;
+        private double _emaAlpha;
+        private int _lookBack;
+        private double _baseMid;
+
+        private bool _baseMidInit;
+        private bool _avgSpreadInit;
+        private bool _spreadInit;
+        private double _spread;
+
+        public int LookBack
+        {
+            get { return _lookBack; }
+            set
+            {
+                if (value > 1)
+                {
+                    _lookBack = value;
+                    
+                    _emaAlpha = 2 / (value + 1.0);
+                }
+            }
+        }
+
+        public override double Mid
+        {
+            get
+            {
+                return base.Mid;
+            }
+            set
+            {
+                base.Mid = value;
+                UpdateMidSpread();
+            }
+        }
+
+        public double BaseMid
+        {
+            get { return _baseMid; }
+            set
+            {
+                if (!_baseMidInit) _baseMidInit = true;
+                _baseMid = value;
+                UpdateMidSpread();
+            }
+        }
+
+        public double TransposedMid { get; private set; }
+
+        public double Spread
+        {
+            get { return _spread; }
+            private set
+            {
+                if (!_spreadInit)
+                {
+                    _spreadInit = true;
+                    _spread = value;
+                }
+                else
+                {
+                    _spread = value;
+
+                    if (!_avgSpreadInit)
+                    {
+                        _avgSpreadInit = true;
+                        AvgSpread = value;
+                    }
+                    else
+                    {
+                        double avgSpread = (AvgSpread*(1 - _emaAlpha)) + (value*_emaAlpha);
+                        AvgSpread = avgSpread;
+                    }
+                }
+            }
+        }
+
+        public double AvgSpread { get; private set; }
+
+        public TransposedSecurity(BloombergSecurity baseSecurity, DataGridViewRow dataGridrow, DataRow dataRow,
+                                  List<string> securityField)
+            : base(dataGridrow, dataRow, securityField)
+        {
+            _baseSecurity = baseSecurity;
+        }
+
+        private void UpdateMidSpread()
+        {
+            if (MidInit && _baseMidInit)
+            {
+                Spread = _baseMid - base.Mid;
+            }
+        }
+
+        protected override void UpdateMid()
+        {
+            if (_avgSpreadInit)
+            {
+                SecurityData["Mid"] = Mid + AvgSpread; 
+            }
+            else
+            {
+                base.UpdateMid();
+            }
+        }
+
+    }
 }
+

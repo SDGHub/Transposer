@@ -13,6 +13,7 @@ namespace Transposer
         private const string SymbolPath = "Symbols.txt";
         private const string ParamsPath = "Parameters.txt";
         private const string BckClrCol = "Highlight";
+        private const int Lookback = 200;
         private int _dataGridColCnt;
 
         private Dictionary<string, string> _parameters = new Dictionary<string, string>();
@@ -34,11 +35,10 @@ namespace Transposer
             InitializeSymbols();
             InitTimer();
             _bloombergRealTimeData.SendRequest();
+            CorrectWindowSize();
 
             //ColorConverter c = new ColorConverter();
             //c.ConvertFromString("Blue");
-
-            CorrectWindowSize();
         }
 
         #region Initialization
@@ -50,16 +50,24 @@ namespace Transposer
 
         private void InitializeDataGrid()
         {
+
             DataGridViewTrnspsr = dataGridViewTrnspsr;
             _transposerTable = FormatDataTable();
             AddSymbols(_transposerTable);
 
             var bindingSource1 = new BindingSource {DataSource = _transposerTable};
             dataGridViewTrnspsr.DataSource = bindingSource1;
-            bindingSource1.ListChanged += bindingSource1_ListChanged; 
+            bindingSource1.ListChanged += bindingSource1_ListChanged;
 
+            // error handler for datagrid threading errors
+            DataGridViewTrnspsr.DataError += DataGridViewTrnspsr_DataError;
 
             FormatDatagrid();
+        }
+
+        private void DataGridViewTrnspsr_DataError(object sender, DataGridViewDataErrorEventArgs e)
+        {
+            Console.WriteLine(@"DataGridError: {0} {1}",e.Context, e.Exception.Message);
         }
 
         public void bindingSource1_ListChanged(object sender, ListChangedEventArgs e)
@@ -71,38 +79,23 @@ namespace Transposer
             }
             else
             {
-
                 if (String.Equals(e.PropertyDescriptor.Name, BckClrCol))
                 {
                     int direction;
-                    var cellStyle = new DataGridViewCellStyle();
-                    int.TryParse(_transposerTable.Rows[e.NewIndex][BckClrCol].ToString(), out direction);
-                    if (direction < 0)
+                    if (int.TryParse(_transposerTable.Rows[e.NewIndex][BckClrCol].ToString(), out direction))
                     {
-                        cellStyle.BackColor = Color.Red;
-                        for (int i = 0; i < _dataGridColCnt; i++)
-                        {
-                            dataGridViewTrnspsr.Rows[e.NewIndex].Cells[i].Style = cellStyle;
-                        }
-                    }
-                    else
-                    {
-                        if (direction > 0)
-                        {
-                            cellStyle.BackColor = Color.LawnGreen;
-                            for (int i = 0; i < _dataGridColCnt; i++)
-                            {
-                                dataGridViewTrnspsr.Rows[e.NewIndex].Cells[i].Style = cellStyle;
-                            }
-                        }
+                        var cellStyle = new DataGridViewCellStyle();
+
+                        if (direction < 0)
+                            cellStyle.BackColor = Color.Red;
                         else
-                        {
-                            cellStyle.BackColor = Color.White;
-                            for (int i = 0; i < _dataGridColCnt; i++)
-                            {
-                                dataGridViewTrnspsr.Rows[e.NewIndex].Cells[i].Style = cellStyle;
-                            }
-                        }
+                            cellStyle.BackColor = direction > 0 ? Color.LawnGreen : Color.White;
+
+                        for (int i = 0; i < _dataGridColCnt; i++)
+                            dataGridViewTrnspsr.Rows[e.NewIndex].Cells[i].Style = cellStyle;
+
+                        if (dataGridViewTrnspsr != null && dataGridViewTrnspsr.CurrentCell != null)
+                            dataGridViewTrnspsr.CurrentCell = null;
                     }
                 }
             }
@@ -163,7 +156,8 @@ namespace Transposer
 
             _dataGridColCnt = dataGridViewTrnspsr.Columns.Count;
 
-
+            dataGridViewTrnspsr.ClearSelection();
+            dataGridViewTrnspsr.CurrentCell = null;
         }
 
         private Dictionary<string, string> GetSymbols()
@@ -184,14 +178,17 @@ namespace Transposer
 
         private void InitializeSymbols()
         {
-            //dataGridViewTrnspsr.Rows
-            for (int i = 0; i < dataGridViewTrnspsr.Rows.Count; i++)
+            var securityBase = new BloombergSecurity(dataGridViewTrnspsr.Rows[0], _transposerTable.Rows[0], _fields);
+            _securities.Add(securityBase);
+            _bloombergRealTimeData.AddSecurity(securityBase);
+
+            for (int i = 1; i < dataGridViewTrnspsr.Rows.Count; i++)
             {
-                DataGridViewRow dataGridrow = dataGridViewTrnspsr.Rows[i];
-                DataRow dataRow = _transposerTable.Rows[i];
-                var security = new BloombergSecurity(dataGridrow, dataRow, _fields, this);
-                _securities.Add(security);
-                _bloombergRealTimeData.AddSecurity(security);
+                var sec = new TransposedSecurity(securityBase, dataGridViewTrnspsr.Rows[i], _transposerTable.Rows[i], _fields);
+                _securities.Add(sec);
+                _bloombergRealTimeData.AddSecurity(sec);
+                securityBase.AddTransposedSecurity(sec);
+                sec.LookBack = Lookback;
             }
         }
 
@@ -199,8 +196,8 @@ namespace Transposer
         {
             var parsedText = new Dictionary<string, string>();
 
-            try
-            {
+            //try
+            //{
                 using (var sr = new StreamReader(path))
                 {
                     string line;
@@ -214,12 +211,12 @@ namespace Transposer
                         }
                     }
                 }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(@"The file could not be read:");
-                Console.WriteLine(e.Message);
-            }
+            //}
+            //catch (Exception e)
+            //{
+            //    Console.WriteLine(@"The file could not be read:");
+            //    Console.WriteLine(e.Message);
+            //}
 
             return parsedText;
         }
