@@ -13,6 +13,7 @@ namespace Transposer
         private const string SymbolPath = "Symbols.txt";
         private const string ParamsPath = "Parameters.txt";
         private const string BckClrCol = "Highlight";
+        private const string SortCol = "Mid";
         private int _dataGridColCnt;
 
         private readonly List<BloombergSecurity> _securities = new List<BloombergSecurity>();
@@ -27,6 +28,7 @@ namespace Transposer
         private Color _downChgColor;
         private Color _dlfColor;
         private int _highlightTimeInSecs;
+        private DataRow baseSymbolRow;
 
         delegate void SetTextCallback(object sender, ListChangedEventArgs e);
 
@@ -85,7 +87,7 @@ namespace Transposer
             }
             else
             {
-                if (e != null && String.Equals(e.PropertyDescriptor.Name, BckClrCol))
+                if (e.PropertyDescriptor != null && String.Equals(e.PropertyDescriptor.Name, BckClrCol))
                 {
                     int direction;
                     if (int.TryParse(_transposerTable.Rows[e.NewIndex][BckClrCol].ToString(), out direction))
@@ -100,8 +102,19 @@ namespace Transposer
                         for (int i = 0; i < _dataGridColCnt; i++)
                             dataGridViewTrnspsr.Rows[e.NewIndex].Cells[i].Style = cellStyle;
 
-                        if (dataGridViewTrnspsr != null && dataGridViewTrnspsr.CurrentCell != null)
-                            dataGridViewTrnspsr.CurrentCell = null;
+                        if (dataGridViewTrnspsr != null)
+                        {
+                            if (dataGridViewTrnspsr.CurrentCell != null) 
+                                dataGridViewTrnspsr.CurrentCell = null;
+
+                            // sort by mid price
+                            if (DataGridViewTrnspsr.Columns.Contains(SortCol))
+                                DataGridViewTrnspsr.Sort(DataGridViewTrnspsr.Columns[SortCol],ListSortDirection.Descending);
+                            
+                            // Style for base scurity 
+                            var style = new DataGridViewCellStyle();
+                            style.Font = new Font(DataGridViewTrnspsr.Font, FontStyle.Bold);
+                        }
                     }
                 }
             }
@@ -187,6 +200,7 @@ namespace Transposer
             var securityBase = new BloombergSecurity(dataGridViewTrnspsr.Rows[0], _transposerTable.Rows[0], _fields);
             _securities.Add(securityBase);
             _bloombergRealTimeData.AddSecurity(securityBase);
+            baseSymbolRow = _transposerTable.Rows[0];
 
             for (int i = 1; i < dataGridViewTrnspsr.Rows.Count; i++)
             {

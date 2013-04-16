@@ -153,6 +153,7 @@ namespace Transposer
             Name = dataRow[1].ToString();
             Ticker = dataRow[0].ToString();
             SecurityFields = securityField;
+
         }
 
         public void AddTransposedSecurity(TransposedSecurity transposedSecurity)
