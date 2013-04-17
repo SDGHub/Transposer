@@ -29,6 +29,7 @@ namespace Transposer
         private Color _dlfColor;
         private int _highlightTimeInSecs;
         private DataRow baseSymbolRow;
+        private string baseSymbolName;
 
         delegate void SetTextCallback(object sender, ListChangedEventArgs e);
 
@@ -87,36 +88,44 @@ namespace Transposer
             }
             else
             {
-                if (e.PropertyDescriptor != null && String.Equals(e.PropertyDescriptor.Name, BckClrCol))
+
+                // sort by mid price
+                if (DataGridViewTrnspsr.Columns.Contains(SortCol)) 
+                    if (e.PropertyDescriptor != null && String.Equals(e.PropertyDescriptor.Name, SortCol))
+                    DataGridViewTrnspsr.Sort(DataGridViewTrnspsr.Columns[SortCol], ListSortDirection.Descending);
+
+                if (dataGridViewTrnspsr != null)
                 {
-                    int direction;
-                    if (int.TryParse(_transposerTable.Rows[e.NewIndex][BckClrCol].ToString(), out direction))
+                    // Style for base scurity 
+                    foreach (DataGridViewRow row in dataGridViewTrnspsr.Rows)
                     {
-                        var cellStyle = new DataGridViewCellStyle();
-                        // sort by mid price
-                        if (DataGridViewTrnspsr.Columns.Contains(SortCol))
-                            DataGridViewTrnspsr.Sort(DataGridViewTrnspsr.Columns[SortCol], ListSortDirection.Descending);
-                          
-                        if (direction < 0)
-                            cellStyle.BackColor = _downChgColor;
-                        else
-                            cellStyle.BackColor = direction > 0 ? _upChgColor : _dlfColor;
+                        var secName = row.Cells[1].Value.ToString().Trim();
 
-                        for (int i = 0; i < _dataGridColCnt; i++)
-                            dataGridViewTrnspsr.Rows[e.NewIndex].Cells[i].Style = cellStyle;
+                        int direction;
+                        int.TryParse(row.Cells[BckClrCol].Value.ToString(), out direction);
+                        
+                        //Console.WriteLine(@"{0} {1} dir {2}", baseSymbolName, secName, direction);
 
-                        if (dataGridViewTrnspsr != null)
+                        row.DefaultCellStyle.Font =
+                            String.Equals(secName, baseSymbolName) ?
+                            new Font(Font, FontStyle.Bold) : new Font(Font, FontStyle.Regular);
+
+                        if (int.TryParse(row.Cells[BckClrCol].Value.ToString(), out direction))
                         {
-                            if (dataGridViewTrnspsr.CurrentCell != null) 
-                                dataGridViewTrnspsr.CurrentCell = null;
+                            var cellStyle = new DataGridViewCellStyle();
+                            if (direction < 0)
+                                cellStyle.BackColor = _downChgColor;
+                            else
+                                cellStyle.BackColor = direction > 0 ? _upChgColor : _dlfColor;
 
-                              
-                            // Style for base scurity 
-                            var style = new DataGridViewCellStyle();
-                            style.Font = new Font(DataGridViewTrnspsr.Font, FontStyle.Bold);
+                            for (int i = 0; i < _dataGridColCnt; i++)
+                                row.Cells[i].Style = cellStyle;
                         }
                     }
                 }
+
+                if (dataGridViewTrnspsr.CurrentCell != null)
+                    dataGridViewTrnspsr.CurrentCell = null;
             }
         }
 
@@ -201,6 +210,7 @@ namespace Transposer
             _securities.Add(securityBase);
             _bloombergRealTimeData.AddSecurity(securityBase);
             baseSymbolRow = _transposerTable.Rows[0];
+            baseSymbolName = _transposerTable.Rows[0][1].ToString().Trim();
 
             for (int i = 1; i < dataGridViewTrnspsr.Rows.Count; i++)
             {
