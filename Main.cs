@@ -30,6 +30,7 @@ namespace Transposer
         private int _highlightTimeInSecs;
         private DataRow baseSymbolRow;
         private string baseSymbolName;
+        private double _precision;
 
         delegate void SetTextCallback(object sender, ListChangedEventArgs e);
 
@@ -211,6 +212,8 @@ namespace Transposer
             _bloombergRealTimeData.AddSecurity(securityBase);
             baseSymbolRow = _transposerTable.Rows[0];
             baseSymbolName = _transposerTable.Rows[0][1].ToString().Trim();
+            securityBase.HighlightTimeInSecs = _highlightTimeInSecs;
+            securityBase.Precision = _precision;
 
             for (int i = 1; i < dataGridViewTrnspsr.Rows.Count; i++)
             {
@@ -220,6 +223,7 @@ namespace Transposer
                 securityBase.AddTransposedSecurity(sec);
                 sec.LookBack = _lookback;
                 sec.HighlightTimeInSecs = _highlightTimeInSecs;
+                sec.Precision = _precision;
             }
         }
 
@@ -230,6 +234,7 @@ namespace Transposer
             _downChgColor = Color.Red;
             _dlfColor = Color.White;
             _highlightTimeInSecs = 4;
+            _precision = 0.0005;
         }
 
         private Dictionary<string, string> ReadAndParseTextFile(string path)
@@ -279,10 +284,18 @@ namespace Transposer
                         int timeInSecs;
                         if (int.TryParse(parameter.Value, out timeInSecs))
                         {
-                            if (timeInSecs > 0 && timeInSecs < 120) 
+                            if (timeInSecs > 0 && timeInSecs < 120)
                                 _highlightTimeInSecs = timeInSecs;
                         }
-                        break;
+                        break;//Precision
+                    case "Precision":
+                        double precision;
+                        if (Double.TryParse(parameter.Value, out precision))
+                        {
+                            if (precision > 0 && precision < 120)
+                                _precision = precision;
+                        }
+                        break;//Precision
                     default:
                         Console.WriteLine(@"Bad Parameter Key/Value pair '{0}' '{1}'", parameter.Key, parameter.Value);
                         break;

@@ -42,6 +42,13 @@ namespace Transposer
         private double _chg;
         private double _prevMid;
         private int _highlightTimeInSecs;
+        private double _precision = 0.005;
+
+        public double Precision
+        {
+            get { return _precision; }
+            set { _precision = value; }
+        }
 
         public double Ask
         {
@@ -330,7 +337,7 @@ namespace Transposer
         {
             if (_avgSpreadInit)
             {
-                SecurityData["Mid"] = Mid + AvgSpread; 
+                SecurityData["Mid"] = Math.Round((Mid + AvgSpread)/Precision, 0)*Precision;
             }
             else
             {
