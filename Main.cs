@@ -93,7 +93,10 @@ namespace Transposer
                     if (int.TryParse(_transposerTable.Rows[e.NewIndex][BckClrCol].ToString(), out direction))
                     {
                         var cellStyle = new DataGridViewCellStyle();
-
+                        // sort by mid price
+                        if (DataGridViewTrnspsr.Columns.Contains(SortCol))
+                            DataGridViewTrnspsr.Sort(DataGridViewTrnspsr.Columns[SortCol], ListSortDirection.Descending);
+                          
                         if (direction < 0)
                             cellStyle.BackColor = _downChgColor;
                         else
@@ -107,10 +110,7 @@ namespace Transposer
                             if (dataGridViewTrnspsr.CurrentCell != null) 
                                 dataGridViewTrnspsr.CurrentCell = null;
 
-                            // sort by mid price
-                            if (DataGridViewTrnspsr.Columns.Contains(SortCol))
-                                DataGridViewTrnspsr.Sort(DataGridViewTrnspsr.Columns[SortCol],ListSortDirection.Descending);
-                            
+                              
                             // Style for base scurity 
                             var style = new DataGridViewCellStyle();
                             style.Font = new Font(DataGridViewTrnspsr.Font, FontStyle.Bold);
