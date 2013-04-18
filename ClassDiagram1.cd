@@ -10,7 +10,7 @@
   <Class Name="Transposer.BloombergSecurity">
     <Position X="3.5" Y="1" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>CABAghAAAABAAEACGQAgACQEABAhYBAEAEIAEEaAAAA=</HashCode>
+      <HashCode>KAAAghAAAABAAEACGQIgACQEMBAhYAAGAEIAAEaAECA=</HashCode>
       <FileName>BloombergSecurity.cs</FileName>
     </TypeIdentifier>
   </Class>
@@ -27,9 +27,14 @@
           <NewMemberFileName>Main.cs</NewMemberFileName>
         </TypeIdentifier>
       </Class>
+      <Struct Name="Transposer.Main.CurncyDepncy" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>Main.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Struct>
     </NestedTypes>
     <TypeIdentifier>
-      <HashCode>AASBAAgAICEEBAAgABigJAmCAAQAAgoQAAAAAgBMAAE=</HashCode>
+      <HashCode>AASAAggAICEAAAAgABigBAmCEAQAggoQIAAGAhIsCCE=</HashCode>
       <FileName>Main.cs</FileName>
     </TypeIdentifier>
   </Class>

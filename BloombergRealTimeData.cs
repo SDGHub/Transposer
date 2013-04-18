@@ -227,15 +227,15 @@ namespace Transposer
             {
 
                 var securityObj = (BloombergSecurity)msg.CorrelationID.Object;
-                DataGridViewRow dataRow = securityObj.DataGridRow;
+                //DataGridViewRow dataRow = securityObj.DataGridRow;
 
                 if (msg.MessageType.Equals(Bloomberglp.Blpapi.Name.GetName("SubscriptionStarted")))
                 {
                     // set subscribed color
-                    foreach (DataGridViewCell cell in dataRow.Cells)
-                    {
-                        cell.Style.BackColor = Color.LightGreen;
-                    }
+                    //foreach (DataGridViewCell cell in dataRow.Cells)
+                    //{
+                    //    cell.Style.BackColor = Color.LightGreen;
+                    //}
                     //try
                     //{
                         // check for error
@@ -275,7 +275,7 @@ namespace Transposer
                         {
                             Element reason = msg.GetElement(REASON);
                             string message = reason.GetElementAsString(DESCRIPTION);
-                            dataRow.Cells[1].Value = message;
+                            //dataRow.Cells[1].Value = message;
                         }
                     }
                 }

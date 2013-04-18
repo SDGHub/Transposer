@@ -9,28 +9,15 @@ namespace Transposer
     public class BloombergSecurity
     {
         public DataRow SecurityData { get; set; }
-        public DataGridViewRow DataGridRow { get; set; }
+        //public DataGridViewRow DataGridRow { get; set; }
         public List<string> SecurityFields = new List<string>();
         public string Name { get; private set; }
         public string Ticker { get; private set; }
 
         private List<TransposedSecurity> _transposedSecurity = new List<TransposedSecurity>();
+        private List<TransposedSecurity> _curncyDependantSecurities = new List<TransposedSecurity>();
         private DateTime _lastBackColorChg = DateTime.Now;
         private bool _backColorNeedsCheck;
-
-        public int HighlightTimeInSecs
-        {
-            get { return _highlightTimeInSecs; }
-            set
-            {
-                if (value > 1)
-                    _highlightTimeInSecs = value;
-                else
-                    _highlightTimeInSecs = 4;
-            }
-        }
-
-        public double HighlightTimeInsecs = 4;
 
         private double _ask;
         private bool _prevAskInit;
@@ -43,6 +30,24 @@ namespace Transposer
         private double _prevMid;
         private int _highlightTimeInSecs;
         private double _precision = 0.005;
+
+        public bool HasCurrencyDependants { get; set; }
+
+        public bool IsCurrency { get; set; }
+
+        public double CurncyMltp { get; set; }
+
+        public int HighlightTimeInSecs
+        {
+            get { return _highlightTimeInSecs; }
+            set
+            {
+                if (value > 1)
+                    _highlightTimeInSecs = value;
+                else
+                    _highlightTimeInSecs = 4;
+            }
+        }
 
         public double Precision
         {
@@ -153,14 +158,14 @@ namespace Transposer
             }
         }
 
-        public BloombergSecurity(DataGridViewRow dataGridrow, DataRow dataRow, List<string> securityField)
+        public BloombergSecurity(DataRow dataRow, List<string> securityField)
         {
-            DataGridRow = dataGridrow;
             SecurityData = dataRow;
             Name = dataRow[1].ToString();
             Ticker = dataRow[0].ToString();
             SecurityFields = securityField;
-
+            HasCurrencyDependants = false;
+            CurncyMltp = 1;
         }
 
         public void AddTransposedSecurity(TransposedSecurity transposedSecurity)
@@ -168,10 +173,15 @@ namespace Transposer
             _transposedSecurity.Add(transposedSecurity);
         }
 
+        public void AddCurrencyDependantSecurity(TransposedSecurity curncyDependantSecurity)
+        {
+            _curncyDependantSecurities.Add(curncyDependantSecurity);
+        }
+
         public void IntiTimer(Timer timer1)
         {
             //Instantiate the timer
-            timer1.Tick += new EventHandler(timer1_Tick);
+            timer1.Tick += timer1_Tick;
         }
 
         public void Setfield(String field, string value)
@@ -227,7 +237,7 @@ namespace Transposer
             if (_backColorNeedsCheck)
             {
                 var timeSinceChange = DateTime.Now - _lastBackColorChg;
-                if (timeSinceChange.Seconds >= HighlightTimeInsecs)
+                if (timeSinceChange.Seconds >= _highlightTimeInSecs)
                 {
                     _backColorNeedsCheck = false;
                     SecurityData["Highlight"] = 0;
@@ -238,7 +248,6 @@ namespace Transposer
 
     public class TransposedSecurity : BloombergSecurity
     {
-        private BloombergSecurity _baseSecurity;
         private double _emaAlpha;
         private int _lookBack;
         private double _baseMid;
@@ -248,6 +257,8 @@ namespace Transposer
         private bool _spreadInit;
         private double _spread;
 
+        private BloombergSecurity _baseSecurity;
+
         public int LookBack
         {
             get { return _lookBack; }
@@ -256,7 +267,7 @@ namespace Transposer
                 if (value > 1)
                 {
                     _lookBack = value;
-                    
+
                     _emaAlpha = 2 / (value + 1.0);
                 }
             }
@@ -318,9 +329,9 @@ namespace Transposer
 
         public double AvgSpread { get; private set; }
 
-        public TransposedSecurity(BloombergSecurity baseSecurity, DataGridViewRow dataGridrow, DataRow dataRow,
+        public TransposedSecurity(BloombergSecurity baseSecurity, DataRow dataRow,
                                   List<string> securityField)
-            : base(dataGridrow, dataRow, securityField)
+            : base(dataRow, securityField)
         {
             _baseSecurity = baseSecurity;
         }
@@ -337,7 +348,8 @@ namespace Transposer
         {
             if (_avgSpreadInit)
             {
-                SecurityData["Mid"] = Math.Round((Mid + AvgSpread)/Precision, 0)*Precision;
+                TransposedMid = Math.Round((Mid + AvgSpread) / Precision, 0) * Precision;
+                SecurityData["Mid"] = TransposedMid;
             }
             else
             {

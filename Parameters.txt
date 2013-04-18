@@ -1,3 +1,4 @@
-﻿Lookback;100
+﻿Lookback;50
 HighlightTimeInSecs;5
 Precision;0.005
+SortGrid;false
